@@ -1,4 +1,4 @@
-import { rawFetch, hubFetch } from "../http";
+import { rawFetch, hubFetch, HubApiError } from "../http";
 import {
   getSession,
   setSession,
@@ -431,6 +431,36 @@ export async function reorderHubs(hub_ids: string[]): Promise<void> {
 }
 
 // Reconnect to persisted hubs from localStorage on app load.
+// A 429 or a 5xx says "not now"; every other failure says something about
+// this hub. The distinction matters because the restore loop's fallback is to
+// drop the hub, and a dropped hub with no session is a user staring at the
+// welcome screen wondering where their communities went.
+function isTransient(e: unknown): boolean {
+  return e instanceof HubApiError && (e.status === 429 || e.status >= 500);
+}
+
+// Startup re-auth is not an edge case: the web client keeps its token in
+// sessionStorage unless asked to remember it, so every page load authenticates
+// again, and the hub's auth limiter is per-IP — shared with every other person
+// behind the same address, and with every tab this one has open. Meeting a 429
+// there is ordinary. The delays are short because the limiter refills
+// continuously (hub rate_limit.rs: 1/s); this is waiting for a token, not
+// backing off from an outage.
+const RESTORE_RETRY_DELAYS_MS = [1000, 2000];
+
+async function authenticateForRestore(
+  ...args: Parameters<typeof authenticate>
+): Promise<Awaited<ReturnType<typeof authenticate>>> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await authenticate(...args);
+    } catch (e) {
+      if (attempt >= RESTORE_RETRY_DELAYS_MS.length || !isTransient(e)) throw e;
+      await new Promise((r) => setTimeout(r, RESTORE_RETRY_DELAYS_MS[attempt]));
+    }
+  }
+}
+
 export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]> {
   const { loadSavedHubs, loadToken, loadActiveHubId } = await import("../storage");
   const saved = loadSavedHubs();
@@ -454,7 +484,7 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
         const hubInfo: InfoResponse = await rawFetch(`${hub.hub_url}/info`).then(
           (r) => r.json() as Promise<InfoResponse>,
         );
-        const authRes = await authenticate(
+        const authRes = await authenticateForRestore(
           authBaseUrl(hubInfo, hub.hub_url, identity.subkey_cert),
           pubkeyHex,
           seedHex,
@@ -505,8 +535,12 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
         hub_icon: hub.hub_icon,
         is_active: hub.hub_id === savedActiveId,
       });
-    } catch {
-      // Skip unreachable hubs on startup
+    } catch (e) {
+      // Skip a hub we cannot reach on startup -- but say which, and why. A
+      // silent drop here is indistinguishable from never having joined it,
+      // and it is the only thing the user is shown: no session, no hub in the
+      // list, and if it was the only one, the welcome screen back.
+      console.warn(`[restore] skipping ${hub.hub_url}:`, e);
     }
   }
 
