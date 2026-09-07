@@ -163,3 +163,20 @@ test("channel bans: ban and unban a real member", async ({ page, browser }) => {
     await context.close();
   }
 });
+
+// The moderation queue. Hoisted into packages/ui 2026-09-08 so desktop could
+// have it too, and it had no e2e coverage on either side until then — a
+// shared component reached through two different transports is exactly the
+// thing worth mounting for real once.
+test("the moderation tab shows the content report queue", async ({ page }) => {
+  await page.goto("/");
+  await expectInHub(page);
+  await openAdminTab(page, "Moderation");
+
+  await expect(page.getByRole("heading", { name: "Content Reports" })).toBeVisible();
+  // Nobody has reported anything on this hub, and saying so is the section
+  // having loaded — an error would render in its place.
+  await expect(page.getByText("No pending reports", { exact: false })).toBeVisible({
+    timeout: 10000,
+  });
+});

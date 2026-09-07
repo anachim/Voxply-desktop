@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { HubAdminPage, type HubAdminPageProps } from "@wavvon/ui";
+import { ModerationTab } from "./ModerationTab";
 import type { Hub, RoleInfo } from "../types";
 import {
   rolesActions,
@@ -67,6 +68,7 @@ export function HubAdminContainer({
     <HubAdminPage
       {...rest}
       isAdmin={isAdmin}
+      renderModerationTab={() => <ModerationTab />}
       saveError={null}
       activeHubUrl={activeHubUrl}
       myPubkey={publicKey ?? ""}

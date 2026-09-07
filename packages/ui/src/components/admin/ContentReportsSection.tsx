@@ -1,15 +1,24 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Report } from "@shared/types";
-import { listReports, reviewReport } from "../../platform/commands/moderation";
 import { formatRelative } from "@wavvon/core";
+import type { Report, ReportAction } from "../../types";
+
+export interface ContentReportsActions {
+  /** `GET /admin/reports?status=` — pending is what a moderator opens this for. */
+  listReports: (status: string) => Promise<Report[]>;
+  reviewReport: (reportId: string, action: ReportAction) => Promise<void>;
+}
 
 function truncate(s: string | null, max: number): string {
   if (!s) return "—";
   return s.length > max ? s.slice(0, max) + "…" : s;
 }
 
-export function ContentReportsSection() {
+/** The pending report queue: what members flagged, and the three things a
+ *  moderator can do about each. Hoisted from web 2026-09-08 so desktop can
+ *  have it too — the reason this is prop-only is that the two clients reach
+ *  the same hub endpoints through different transports. */
+export function ContentReportsSection({ actions }: { actions: ContentReportsActions }) {
   const { t } = useTranslation();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,26 +28,27 @@ export function ContentReportsSection() {
     setLoading(true);
     setError(null);
     try {
-      const data = await listReports("pending");
-      setReports(data);
+      setReports(await actions.listReports("pending"));
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    void load();
+    // Actions are a stable object from the app's own wiring; re-running on it
+    // would reload the queue on every parent render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  async function handleReview(
-    reportId: string,
-    action: "dismiss" | "delete_message" | "ban_user",
-  ) {
+  async function handleReview(reportId: string, action: ReportAction) {
     try {
-      await reviewReport(reportId, action);
+      await actions.reviewReport(reportId, action);
       await load();
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
 

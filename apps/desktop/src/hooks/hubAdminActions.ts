@@ -35,6 +35,8 @@ import type {
   AllianceInvite,
   PendingAllianceInvite,
   SharedChannel,
+  ContentReportsActions,
+  Report,
 } from "@wavvon/ui";
 
 // Pure invoke wrappers for HubAdminPage's sections that take no hub-url
@@ -215,3 +217,12 @@ export function makeSurveyActions(getHubUrl: () => string): SurveyAdminSectionAc
   };
 }
 
+
+// Content reports: the queue of what members flagged. Unlike most of the
+// sections above these commands take no hub URL — `list_reports` /
+// `review_report` act on the active session, the way the rest of the
+// moderation surface will when it follows (parity pass, 2026-09-08).
+export const contentReportActions: ContentReportsActions = {
+  listReports: (status) => invoke<Report[]>("list_reports", { status }),
+  reviewReport: (reportId, action) => invoke("review_report", { reportId, action, note: null }),
+};

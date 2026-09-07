@@ -1222,3 +1222,79 @@ pub(crate) async fn update_my_profile_on_hub(
     }
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// Content reports (moderation queue)
+//
+// Web has had these since the moderation suite shipped; desktop had no surface
+// for them at all, so a moderator on desktop could not see what members had
+// flagged. Parity pass 2026-09-08 — the UI is the shared
+// `ContentReportsSection`, and this is the transport half.
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct Report {
+    pub id: String,
+    pub message_id: String,
+    pub message_content: Option<String>,
+    pub channel_id: String,
+    pub reporter_pubkey: String,
+    pub reason: String,
+    pub reported_at: i64,
+    pub status: String,
+}
+
+#[tauri::command]
+pub(crate) async fn list_reports(
+    status: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Vec<Report>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    // The vocabulary is ours ("pending", "reviewed"), so this validates rather
+    // than escapes: anything else is a caller bug, and silently encoding it
+    // would send the hub a filter nobody meant.
+    let query = match status.as_deref() {
+        None | Some("") => String::new(),
+        Some(s) if s.chars().all(|c| c.is_ascii_lowercase() || c == '_') => {
+            format!("?status={s}")
+        }
+        Some(other) => return Err(format!("unsupported report status: {other}")),
+    };
+    let resp = state
+        .http_client
+        .get(format!("{base}/admin/reports{query}"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
+}
+
+#[tauri::command]
+pub(crate) async fn review_report(
+    report_id: String,
+    action: String,
+    note: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .post(format!("{base}/admin/reports/{report_id}/review"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "action": action, "note": note }))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}

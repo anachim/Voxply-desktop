@@ -951,3 +951,18 @@ export interface MemberHistoryEntry {
   reason?: string | null;
   added_at: number;
 }
+
+/** A member-filed report about one message, as the hub returns it from
+ *  `GET /admin/reports`. */
+export interface Report {
+  id: string;
+  message_id: string;
+  message_content: string | null;
+  channel_id: string;
+  reporter_pubkey: string;
+  reason: string;
+  reported_at: number;
+  status: string;
+}
+
+export type ReportAction = "dismiss" | "delete_message" | "ban_user";

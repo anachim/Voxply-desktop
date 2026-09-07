@@ -213,6 +213,8 @@ pub fn run() {
             local_store::get_profile,
             local_store::save_profile,
             // Admin
+            admin::list_reports,
+            admin::review_report,
             admin::list_users,
             admin::get_me,
             admin::get_hub_branding,
