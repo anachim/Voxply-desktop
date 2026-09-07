@@ -443,10 +443,16 @@ function isTransient(e: unknown): boolean {
 // sessionStorage unless asked to remember it, so every page load authenticates
 // again, and the hub's auth limiter is per-IP — shared with every other person
 // behind the same address, and with every tab this one has open. Meeting a 429
-// there is ordinary. The delays are short because the limiter refills
-// continuously (hub rate_limit.rs: 1/s); this is waiting for a token, not
-// backing off from an outage.
-const RESTORE_RETRY_DELAYS_MS = [1000, 2000];
+// there is ordinary.
+//
+// The delays start at 2s because of arithmetic, not caution: a handshake is
+// TWO limited requests (/auth/challenge then /auth/verify) and the bucket
+// refills one token per second (hub rate_limit.rs). Waiting 1s buys exactly
+// one token, the challenge spends it, and verify meets an empty bucket again —
+// so a 1s retry against a drained limiter cannot succeed however many times it
+// runs. That is not a hypothesis: a CI trace shows 200/429, wait 1s, 200/429,
+// wait 2s, 429, give up.
+const RESTORE_RETRY_DELAYS_MS = [2000, 4000, 8000];
 
 async function authenticateForRestore(
   ...args: Parameters<typeof authenticate>

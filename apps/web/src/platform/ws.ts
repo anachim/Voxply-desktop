@@ -240,9 +240,16 @@ export class HubWebSocket {
   private scheduleReconnect(): void {
     if (this.closed) return;
     this.consecutiveFailures += 1;
-    if (this.consecutiveFailures >= REAUTH_AFTER_FAILURES && this.handlers.onReauthNeeded) {
-      this.handlers.onReauthNeeded(this.hub_id);
-      return;
+    // Past a few failures the token is the likeliest suspect, so ask for a
+    // fresh one — but keep our own retry armed regardless. Re-auth is a
+    // network call like any other and fails for reasons that say nothing
+    // about this session: a 429 off the shared auth limiter, a hub halfway
+    // through a restart. Returning here left no timer, no socket and no
+    // further attempt, while the UI went on announcing "Reconnecting…" for
+    // as long as the tab stayed open. A re-auth that *succeeds* calls
+    // close() on this socket, which cancels the timer set just below.
+    if (this.consecutiveFailures >= REAUTH_AFTER_FAILURES) {
+      this.handlers.onReauthNeeded?.(this.hub_id);
     }
     this.retryTimer = setTimeout(() => {
       this.connect();

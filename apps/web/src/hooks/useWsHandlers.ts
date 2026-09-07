@@ -79,6 +79,7 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
   } = deps;
 
   const stableHandlersRef = useRef<WsHandlers>({});
+  const reauthInFlight = useRef<Set<string>>(new Set());
 
   const stableHandlers: WsHandlers = useMemo(() => ({
     onMessage: (raw) => {
@@ -215,9 +216,21 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
       receiveSoundboardPlayed(raw);
     },
     onReauthNeeded: (hubId) => {
+      // The socket asks on every failed retry past its threshold, and its
+      // backoff can be shorter than a handshake takes — without this guard a
+      // flapping connection stacks re-auths, each one closing the socket the
+      // one before it just opened.
+      if (reauthInFlight.current.has(hubId)) return;
+      reauthInFlight.current.add(hubId);
       reauthorizeHub(hubId, stableHandlersRef.current).then(() => {
         if (hubId === activeHubIdRef.current) void loadHubDataRef.current();
-      }).catch(() => {});
+      }).catch((e) => {
+        // Not fatal: the socket keeps its own retry armed (platform/ws.ts
+        // scheduleReconnect), so this is one attempt lost, not the session.
+        console.warn(`[ws] re-auth with ${hubId} failed, socket will retry:`, e);
+      }).finally(() => {
+        reauthInFlight.current.delete(hubId);
+      });
     },
     onChannelsUpdated: (hubId) => {
       if (hubId !== activeHubIdRef.current) return;
