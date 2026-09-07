@@ -26,7 +26,7 @@ export interface UseChannelMessagesParams {
   selectedAllianceChannel: SelectedAllianceChannel | null;
   clearSelectedAllianceChannel: () => void;
   selectAllianceChannel: (alliance: AllianceInfo, channel: AllianceSharedChannel) => Promise<void>;
-  sendAllianceMessage: (content: string) => Promise<void>;
+  sendAllianceMessage: (content: string) => Promise<boolean>;
   /** A message of the user's own just reached the hub. */
   onMessageSent?: () => void;
 }
@@ -161,9 +161,9 @@ export function useChannelMessages({
 
   async function handleSendAllianceMessage() {
     if (!selectedAllianceChannel || !inputText.trim()) return;
-    const text = inputText;
-    setInputText("");
-    await sendAllianceMessage(text);
+    // Clear on success only: this used to empty the box first, so a refused
+    // send (an alliance revoked, a hub down) took the message with it.
+    if (await sendAllianceMessage(inputText)) setInputText("");
   }
 
   async function handleSend() {

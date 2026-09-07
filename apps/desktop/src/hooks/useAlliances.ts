@@ -1,48 +1,32 @@
-import { useState } from "react";
+import { useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { AllianceInfo, AllianceSharedChannel } from "../types";
+import { useAlliances as useSharedAlliances } from "@wavvon/ui";
+import type { AllianceInfo, AllianceSharedChannel, Message } from "../types";
 
-export interface AlliancesReturn {
-  userAlliances: AllianceInfo[];
-  setUserAlliances: React.Dispatch<React.SetStateAction<AllianceInfo[]>>;
-  allianceChannels: Record<string, AllianceSharedChannel[]>;
-  setAllianceChannels: React.Dispatch<React.SetStateAction<Record<string, AllianceSharedChannel[]>>>;
-  loadAlliances: () => Promise<void>;
-}
+export type { SelectedAllianceChannel, AlliancesReturn } from "@wavvon/ui";
 
-export function useAlliances(setError: (msg: string) => void): AlliancesReturn {
-  const [userAlliances, setUserAlliances] = useState<AllianceInfo[]>([]);
-  const [allianceChannels, setAllianceChannels] = useState<Record<string, AllianceSharedChannel[]>>({});
+// Desktop's half of the shared alliance hook: the Tauri commands, and nothing
+// else. Selection and messages used to live in useChannelMessages here — they
+// are alliance state, so they moved in with the rest of it when the two app
+// copies converged (2026-09-07).
+export function useAlliances(setError: (msg: string) => void) {
+  const onError = useRef(setError);
+  onError.current = setError;
 
-  async function loadAlliances() {
-    try {
-      const al = await invoke<AllianceInfo[]>("list_alliances");
-      setUserAlliances(al);
-      const byId: Record<string, AllianceSharedChannel[]> = {};
-      await Promise.all(
-        al.map(async (a) => {
-          try {
-            byId[a.id] = await invoke<AllianceSharedChannel[]>(
-              "list_alliance_shared_channels",
-              { allianceId: a.id }
-            );
-          } catch {
-            byId[a.id] = [];
-          }
-        })
-      );
-      setAllianceChannels(byId);
-    } catch {
-      setUserAlliances([]);
-      setAllianceChannels({});
-    }
-  }
+  const deps = useMemo(
+    () => ({
+      listAlliances: () => invoke<AllianceInfo[]>("list_alliances"),
+      listSharedChannels: (allianceId: string) =>
+        invoke<AllianceSharedChannel[]>("list_alliance_shared_channels", { allianceId }),
+      getChannelMessages: (allianceId: string, channelId: string) =>
+        invoke<Message[]>("get_alliance_channel_messages", { allianceId, channelId }),
+      sendChannelMessage: async (allianceId: string, channelId: string, content: string) => {
+        await invoke("send_alliance_channel_message", { allianceId, channelId, content });
+      },
+      onError: (message: string) => onError.current(message),
+    }),
+    [],
+  );
 
-  return {
-    userAlliances,
-    setUserAlliances,
-    allianceChannels,
-    setAllianceChannels,
-    loadAlliances,
-  };
+  return useSharedAlliances(deps);
 }

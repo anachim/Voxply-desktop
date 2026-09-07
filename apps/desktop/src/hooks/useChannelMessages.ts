@@ -5,6 +5,7 @@ import { mentionsName, playMentionPing } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "../utils/drafts";
 import { readFileAsB64 } from "../utils/files";
 import { MAX_ATTACHMENT_BYTES } from "../constants";
+import type { SelectedAllianceChannel } from "@wavvon/ui";
 import type { Channel, Message, Attachment, AllianceInfo, AllianceSharedChannel, NotifyMode, PresenceStatus } from "../types";
 
 export interface ChannelMessagesParams {
@@ -23,6 +24,15 @@ export interface ChannelMessagesParams {
   clearAllTyping: () => void;
   setError: (msg: string) => void;
   setToast: (msg: string) => void;
+  // The alliance axis lives in useAlliances (packages/ui) on both clients;
+  // this hook only wires it to the composer and the channel selection.
+  selectedAllianceChannel: SelectedAllianceChannel | null;
+  allianceMessages: Message[];
+  setSelectedAllianceChannel: React.Dispatch<React.SetStateAction<SelectedAllianceChannel | null>>;
+  setAllianceMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  clearSelectedAllianceChannel: () => void;
+  selectSharedAllianceChannel: (alliance: AllianceInfo, ch: AllianceSharedChannel) => Promise<void>;
+  sendAllianceMessage: (content: string) => Promise<boolean>;
 }
 
 export interface ChannelMessagesReturn {
@@ -48,14 +58,14 @@ export interface ChannelMessagesReturn {
   searchOpen: boolean;
   setSearchOpen: React.Dispatch<React.SetStateAction<boolean>>;
   selectedChannel: Channel | null;
-  selectedAllianceChannel: { alliance_id: string; alliance_name: string; channel: AllianceSharedChannel } | null;
+  selectedAllianceChannel: SelectedAllianceChannel | null;
   allianceMessages: Message[];
   mentionPingEnabled: boolean;
   setMentionPingEnabled: (v: boolean) => void;
   selectChannel: (channel: Channel) => Promise<void>;
   selectAllianceChannel: (alliance: AllianceInfo, ch: AllianceSharedChannel) => Promise<void>;
   clearSelectedChannel: () => void;
-  setSelectedAllianceChannel: React.Dispatch<React.SetStateAction<{ alliance_id: string; alliance_name: string; channel: AllianceSharedChannel } | null>>;
+  setSelectedAllianceChannel: React.Dispatch<React.SetStateAction<SelectedAllianceChannel | null>>;
   setAllianceMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   handleSend: () => Promise<void>;
   handleSendAllianceMessage: () => Promise<void>;
@@ -100,6 +110,13 @@ export function useChannelMessages({
   clearAllTyping,
   setError,
   setToast,
+  selectedAllianceChannel,
+  allianceMessages,
+  setSelectedAllianceChannel,
+  setAllianceMessages,
+  clearSelectedAllianceChannel,
+  selectSharedAllianceChannel,
+  sendAllianceMessage,
 }: ChannelMessagesParams): ChannelMessagesReturn {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputTextState] = useState("");
@@ -114,12 +131,6 @@ export function useChannelMessages({
   const [searchResults, setSearchResults] = useState<Message[] | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
-  const [selectedAllianceChannel, setSelectedAllianceChannel] = useState<{
-    alliance_id: string;
-    alliance_name: string;
-    channel: AllianceSharedChannel;
-  } | null>(null);
-  const [allianceMessages, setAllianceMessages] = useState<Message[]>([]);
 
   const [mentionPingEnabled, setMentionPingEnabledState] = useState<boolean>(() => {
     try { return localStorage.getItem("wavvon.mentionPing") !== "0"; } catch { return true; }
@@ -361,8 +372,7 @@ export function useChannelMessages({
     if (selectedChannel && selectedChannel.id !== channel.id) {
       await invoke("unsubscribe_channel", { channelId: selectedChannel.id });
     }
-    setSelectedAllianceChannel(null);
-    setAllianceMessages([]);
+    clearSelectedAllianceChannel();
     closeSearch();
     setSelectedChannel(channel);
     setMessages([]);
@@ -389,30 +399,16 @@ export function useChannelMessages({
   }
 
   async function selectAllianceChannel(alliance: AllianceInfo, ch: AllianceSharedChannel) {
-    const localMatch = channelsRef.current.find((c) => c.id === ch.channel_id);
-    if (localMatch) {
-      await selectChannel(localMatch);
-      return;
-    }
+    // Desktop subscribes per channel, so leaving one is an explicit step —
+    // this is the platform half that stays here while the alliance half went
+    // to the shared hook. (A branch that opened a shared channel as a local
+    // one went with the merge: ChannelSidebar lists only channels with no
+    // local match, so it could never fire.)
     if (selectedChannel) {
       await invoke("unsubscribe_channel", { channelId: selectedChannel.id });
       setSelectedChannel(null);
     }
-    setSelectedAllianceChannel({
-      alliance_id: alliance.id,
-      alliance_name: alliance.name,
-      channel: ch,
-    });
-    setAllianceMessages([]);
-    try {
-      const msgs = await invoke<Message[]>("get_alliance_channel_messages", {
-        allianceId: alliance.id,
-        channelId: ch.channel_id,
-      });
-      setAllianceMessages(msgs);
-    } catch (e) {
-      setError(String(e));
-    }
+    await selectSharedAllianceChannel(alliance, ch);
   }
 
   async function handleSend() {
@@ -446,26 +442,8 @@ export function useChannelMessages({
   }
 
   async function handleSendAllianceMessage() {
-    if (!selectedAllianceChannel) return;
-    const content = inputText.trim();
-    if (!content) return;
-    try {
-      await invoke("send_alliance_channel_message", {
-        allianceId: selectedAllianceChannel.alliance_id,
-        channelId: selectedAllianceChannel.channel.channel_id,
-        content,
-      });
-      setInputText("");
-      try {
-        const msgs = await invoke<Message[]>("get_alliance_channel_messages", {
-          allianceId: selectedAllianceChannel.alliance_id,
-          channelId: selectedAllianceChannel.channel.channel_id,
-        });
-        setAllianceMessages(msgs);
-      } catch {}
-    } catch (e) {
-      setError(String(e));
-    }
+    if (!selectedAllianceChannel || !inputText.trim()) return;
+    if (await sendAllianceMessage(inputText)) setInputText("");
   }
 
   function startEditingMessage(m: Message) {

@@ -416,6 +416,10 @@ function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
 
+  // Above useChannelMessages: the alliance state it wires to the composer now
+  // lives here, the way it always has on web.
+  const alliances = useAlliances(setError);
+
   const channelMessages = useChannelMessages({
     activeHubIdRef,
     publicKeyRef,
@@ -432,6 +436,13 @@ function App() {
     clearAllTyping,
     setError,
     setToast,
+    selectedAllianceChannel: alliances.selectedAllianceChannel,
+    allianceMessages: alliances.allianceMessages,
+    setSelectedAllianceChannel: alliances.setSelectedAllianceChannel,
+    setAllianceMessages: alliances.setAllianceMessages,
+    clearSelectedAllianceChannel: alliances.clearSelectedAllianceChannel,
+    selectSharedAllianceChannel: alliances.selectAllianceChannel,
+    sendAllianceMessage: alliances.sendAllianceMessage,
   });
 
   // Keep refs in sync so useTypingIndicators sees the current channel/conv.
@@ -512,7 +523,7 @@ function App() {
     allianceChannels,
     setAllianceChannels,
     loadAlliances,
-  } = useAlliances(setError);
+  } = alliances;
 
   const [hubDropdownOpen, setHubDropdownOpen] = useState(false);
   const [showHubStreams, setShowHubStreams] = useState(false);

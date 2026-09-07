@@ -369,6 +369,8 @@ export { useHubSetupWizardGate } from "./hooks/useHubSetupWizardGate";
 export { useSoundboardChips, parseSoundboardPlayedEvent } from "./hooks/useSoundboardChips";
 export type { SoundboardPlayedEvent } from "./hooks/useSoundboardChips";
 export { useWhisperKeybinds } from "./hooks/useWhisperKeybinds";
+export { useAlliances } from "./hooks/useAlliances";
+export type { AllianceDeps, AlliancesReturn, SelectedAllianceChannel } from "./hooks/useAlliances";
 export { applyWhisperLogEvent, pickReplyPubkey } from "./utils/whisperInbox";
 export type { InboundWhisperEntry } from "./utils/whisperInbox";
 export { ChannelContextMenu } from "./components/channels/ChannelContextMenu";
