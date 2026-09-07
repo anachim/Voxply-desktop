@@ -2036,5 +2036,9 @@
   "hub.sidebar.aria": "Hub",
   "hub.sidebar.list_aria": "Elenco degli hub",
   "hub.placeholder_name": "Hub",
-  "friends.loading": "Caricamento…"
+  "friends.loading": "Caricamento…",
+  "dm.encryption_warning.title": "Non cifrato",
+  "dm.encryption_warning.no_key": "Questo destinatario non ha ancora pubblicato una chiave di cifratura, quindi il messaggio arriverebbe al suo hub in chiaro. Inviarlo comunque?",
+  "dm.encryption_warning.failed": "Cifratura non riuscita. Il messaggio non è stato inviato.",
+  "dm.encryption_warning.key_unreachable": "Non è stato possibile verificare la chiave di cifratura del destinatario, quindi il messaggio non è stato inviato. Riprova tra poco."
 }

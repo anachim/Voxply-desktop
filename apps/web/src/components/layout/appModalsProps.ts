@@ -1,3 +1,4 @@
+import type { EncryptionWarning } from "@wavvon/ui";
 import type React from "react";
 import type { Channel, Hub, User } from "@shared/types";
 import type { NotifyMode } from "@wavvon/ui";
@@ -27,6 +28,8 @@ export interface AppModalsProps {
   // Remove-a-hub confirmation. The dialog only reports; the decision of what
   // it may say lives in the hook (decisions.md, "Leave hub does not leave").
   removeHub: ReturnType<typeof useRemoveHubConfirm>;
+  /** A DM waiting on the user to say whether it may leave unencrypted. */
+  encryptionWarning: EncryptionWarning | null;
   onOpenHomeHubSettings: () => void;
 
   // Hub admin

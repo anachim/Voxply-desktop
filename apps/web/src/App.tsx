@@ -1579,6 +1579,7 @@ export default function App({ initialView }: AppProps = {}) {
 
       <AppModals
         removeHub={removeHubConfirm}
+        encryptionWarning={dms.encryptionWarning}
         onOpenHomeHubSettings={() => {
           removeHubConfirm.cancel();
           settingsProfile.setSettingsTab("accounts");

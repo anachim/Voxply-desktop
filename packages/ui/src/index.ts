@@ -354,6 +354,8 @@ export type { RecoveryContactsSectionActions } from "./components/settings/Recov
 export { useVoiceMoveUx } from "./hooks/useVoiceMoveUx";
 export type { VoiceMoveMenuState } from "./hooks/useVoiceMoveUx";
 export { RemoveHubModal } from "./components/RemoveHubModal";
+export { EncryptionWarningModal } from "./components/EncryptionWarningModal";
+export type { EncryptionWarning } from "./components/EncryptionWarningModal";
 export { homeHubStatus } from "./utils/homeHubStatus";
 export { resolveStoredPresence, storedPresenceFor } from "./utils/presenceExpiry";
 export type { StoredPresence } from "./utils/presenceExpiry";

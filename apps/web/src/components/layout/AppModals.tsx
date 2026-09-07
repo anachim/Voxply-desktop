@@ -11,6 +11,7 @@ import {
   PollComposer,
   QuickInviteModal,
   RemoveHubModal,
+  EncryptionWarningModal,
 } from "@wavvon/ui";
 import {
   createEvent,
@@ -326,6 +327,8 @@ export function AppModals(p: AppModalsProps) {
           onSkip={() => setShowDisplayNamePrompt(false)}
         />
       )}
+
+      {p.encryptionWarning && <EncryptionWarningModal {...p.encryptionWarning} />}
 
       {removeHub.pending && (
         <RemoveHubModal

@@ -1,7 +1,7 @@
 import { hexToBytes, bytesToHex } from "@wavvon/core";
 import { dmFetch, dmSession } from "../dmHub";
 import { fetchAllPages, LIST_CURSOR_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
-import { hubFetch, rawFetch } from "../http";
+import { hubFetch, rawFetch, HubApiError } from "../http";
 import { activeSession } from "../session";
 import i18n from "@wavvon/i18n";
 import { loadIdentity } from "../../identity/store";
@@ -245,11 +245,25 @@ export async function getDmMessages(
   return results;
 }
 
+export interface SendDmOptions {
+  /** Asked before a message would leave unencrypted, and only then. Returning
+   *  false abandons the send with the composer untouched.
+   *
+   *  Required in practice: without it this refuses rather than guessing, which
+   *  is the one direction that cannot leak. Web used to take the other one —
+   *  a recipient with no published key got a plaintext DM and no notice, and
+   *  so did anyone whose key lookup merely failed. */
+  confirmUnencrypted?: () => Promise<boolean>;
+}
+
+export type SendDmResult = "sent" | "cancelled";
+
 export async function sendDm(
   conversation_id: string,
   content: string,
   attachments?: Attachment[],
-): Promise<void> {
+  opts?: SendDmOptions,
+): Promise<SendDmResult> {
   const identity = await loadIdentity();
   if (!identity) throw new Error("No identity");
 
@@ -261,21 +275,32 @@ export async function sendDm(
   // cert-chained envelopes").
   const recipientPubkey = members.find((m) => m !== senderPubkey);
 
-  if (!recipientPubkey) {
+  const sendPlaintext = async () => {
     await dmFetch(`/conversations/${conversation_id}/messages`, {
       method: "POST",
       body: JSON.stringify({ content, attachments }),
     });
-    return;
+  };
+
+  // Nobody else in the conversation: there is no one to encrypt to, and
+  // nothing to disclose to a third party either.
+  if (!recipientPubkey) {
+    await sendPlaintext();
+    return "sent";
   }
 
-  const recipientDhPubHex = await fetchDhKey(recipientPubkey);
+  // Throws rather than answering null when the lookup itself failed — that
+  // used to read as "no key" and send the message in the clear.
+  const recipientDhPubHex = await lookupDhKey(recipientPubkey);
   if (!recipientDhPubHex) {
-    await dmFetch(`/conversations/${conversation_id}/messages`, {
-      method: "POST",
-      body: JSON.stringify({ content, attachments }),
-    });
-    return;
+    // A real absence, and the user's call to make: the message would reach
+    // their hub readable. No callback means no consent, and no consent means
+    // no send.
+    if (!opts?.confirmUnencrypted || !(await opts.confirmUnencrypted())) {
+      return "cancelled";
+    }
+    await sendPlaintext();
+    return "sent";
   }
 
   let drSession = loadDrSession(conversation_id);
@@ -301,7 +326,13 @@ export async function sendDm(
   try {
     const created = (await res.json()) as { id?: string };
     if (created.id) saveOwnPlaintext(created.id, content);
-  } catch {}
+  } catch (e) {
+    // The message is sent; only our own readable copy is missing, and the
+    // symptom is this message reading "you sent this from another device"
+    // in history. Worth a line rather than nothing.
+    console.warn("[dm] sent, but could not stash our own plaintext copy:", e);
+  }
+  return "sent";
 }
 
 /** One conversation as the DM hub has it. Exported because the WS arm that
@@ -320,7 +351,11 @@ async function getConversationMembers(conversation_id: string): Promise<string[]
 const dhKeyCache = new Map<string, { hex: string; ts: number }>();
 const DH_CACHE_TTL = 24 * 60 * 60 * 1000;
 
-export async function fetchDhKey(
+/** Null means the hub answered and this identity has published no DH key.
+ *  Anything else — a 429 off the shared limiter, a hub mid-restart, no
+ *  network — throws, because the caller that matters treats null as "cannot
+ *  encrypt" and a failed lookup is not that. */
+export async function lookupDhKey(
   pubkey: string,
   hub_url?: string,
 ): Promise<string | null> {
@@ -328,14 +363,31 @@ export async function fetchDhKey(
   if (cached && Date.now() - cached.ts < DH_CACHE_TTL) return cached.hex;
 
   const base = hub_url ?? activeSession().hub_url;
+  let res: Response;
   try {
-    const res = await rawFetch(`${base}/identity/${pubkey}/dh-key`);
-    const record = (await res.json()) as {
-      dh_pubkey_hex: string;
-      signature_hex: string;
-    };
-    dhKeyCache.set(pubkey, { hex: record.dh_pubkey_hex, ts: Date.now() });
-    return record.dh_pubkey_hex;
+    res = await rawFetch(`${base}/identity/${pubkey}/dh-key`);
+  } catch (e) {
+    if (e instanceof HubApiError && e.status === 404) return null;
+    throw e;
+  }
+  const record = (await res.json()) as {
+    dh_pubkey_hex: string;
+    signature_hex: string;
+  };
+  dhKeyCache.set(pubkey, { hex: record.dh_pubkey_hex, ts: Date.now() });
+  return record.dh_pubkey_hex;
+}
+
+/** The lenient reading, for callers where a missing key means "skip this
+ *  peer" and a failed lookup means the same thing in practice — voice key
+ *  distribution drops a participant either way and retries on the next
+ *  rekey. Never use it to decide whether to encrypt a message. */
+export async function fetchDhKey(
+  pubkey: string,
+  hub_url?: string,
+): Promise<string | null> {
+  try {
+    return await lookupDhKey(pubkey, hub_url);
   } catch {
     return null;
   }

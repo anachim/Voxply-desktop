@@ -2036,5 +2036,9 @@
   "hub.sidebar.aria": "Hubs",
   "hub.sidebar.list_aria": "Hub-Liste",
   "hub.placeholder_name": "Hub",
-  "friends.loading": "Wird geladen…"
+  "friends.loading": "Wird geladen…",
+  "dm.encryption_warning.title": "Nicht verschlüsselt",
+  "dm.encryption_warning.no_key": "Diese Person hat noch keinen Verschlüsselungsschlüssel veröffentlicht, die Nachricht würde ihren Hub also lesbar erreichen. Trotzdem senden?",
+  "dm.encryption_warning.failed": "Verschlüsselung fehlgeschlagen. Die Nachricht wurde nicht gesendet.",
+  "dm.encryption_warning.key_unreachable": "Der Verschlüsselungsschlüssel dieser Person konnte nicht geprüft werden, die Nachricht wurde daher nicht gesendet. Versuche es gleich noch einmal."
 }

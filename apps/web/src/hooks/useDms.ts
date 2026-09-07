@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getDmMessages, sendDm, createConversation, getConversation, HubApiError } from "@platform";
+import type { EncryptionWarning } from "@wavvon/ui";
 import type { Conversation, DmMessage } from "@shared/types";
 
 interface UseDmsParams {
@@ -37,6 +38,7 @@ export function useDms({
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [dmMessages, setDmMessages] = useState<Record<string, DmMessage[]>>({});
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [encryptionWarning, setEncryptionWarning] = useState<EncryptionWarning | null>(null);
   const selectedConvRef = useRef<Conversation | null>(null);
   useEffect(() => {
     selectedConvRef.current = selectedConversation;
@@ -69,20 +71,33 @@ export function useDms({
     }
   }
 
+  // Resolved by whichever button the user presses in EncryptionWarningModal.
+  // A pending ask is the only reason this hook holds a promise: sendDm needs
+  // an answer, and the answer arrives from the render tree.
+  function confirmUnencrypted(): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      setEncryptionWarning({
+        messageKey: "dm.encryption_warning.no_key",
+        onConfirm: () => { setEncryptionWarning(null); resolve(true); },
+        onCancel: () => { setEncryptionWarning(null); resolve(false); },
+      });
+    });
+  }
+
   async function handleSendDm() {
     if (!selectedConversation || !inputText.trim()) return;
     const text = inputText.trim();
-    setInputText("");
     const convId = selectedConversation.id;
     try {
-      await sendDm(convId, text);
+      // Clearing the composer is now the last step, not the first: a send
+      // that is refused — or declined at the encryption prompt — leaves what
+      // was typed where the user left it.
+      if ((await sendDm(convId, text, undefined, { confirmUnencrypted })) === "cancelled") return;
     } catch (e) {
-      // Losing the message silently is worse than any error: put the text
-      // back in the composer and surface what happened.
-      setInputText(text);
       showHubError(e instanceof HubApiError ? e.message : String(e));
       return;
     }
+    setInputText("");
     // The hub never echoes a DM back to its sender (anti-echo), so reload
     // the log to show the sent message — same source-of-truth reload the
     // onDm arm does for inbound messages. Send already succeeded: a reload
@@ -132,6 +147,7 @@ export function useDms({
     selectedConversation,
     setSelectedConversation,
     selectedConvRef,
+    encryptionWarning,
     handleSelectConversation,
     handleStartConversation,
     handleSendDm,

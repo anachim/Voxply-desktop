@@ -16,6 +16,7 @@ import {
   type HubEvent,
   type HubIcon,
   type Poll,
+  EncryptionWarningModal,
 } from "@wavvon/ui";
 import type {
   Channel,
@@ -34,7 +35,7 @@ import { DISCOVERY_URL } from "../constants";
 import type { useAddHubFlow } from "../hooks/useAddHubFlow";
 import type { useChannelCrud } from "../hooks/useChannelCrud";
 import type { useVoice } from "../hooks/useVoice";
-import type { EncryptionWarning } from "../hooks/useDms";
+import type { EncryptionWarning } from "@wavvon/ui";
 import { Lightbox } from "./Lightbox";
 import { BannerEditModal } from "./BannerEditModal";
 import { ScreenShareModal } from "./ScreenShareModal";
@@ -463,23 +464,7 @@ export function AppModals(p: AppModalsProps) {
         />
       )}
 
-      {encryptionWarning && (
-        <div className="modal-overlay">
-          <div className="modal encryption-warning-modal">
-            <p>{encryptionWarning.message}</p>
-            <div className="modal-actions">
-              {encryptionWarning.onConfirm && (
-                <button onClick={encryptionWarning.onConfirm}>
-                  {t("dm.encryption_warning.send_anyway")}
-                </button>
-              )}
-              <button onClick={encryptionWarning.onCancel}>
-                {encryptionWarning.onConfirm ? t("modal.cancel") : t("modal.dismiss")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {encryptionWarning && <EncryptionWarningModal {...encryptionWarning} />}
 
       {showKeyboardShortcuts && (
         <KeyboardShortcuts onClose={() => setShowKeyboardShortcuts(false)} />

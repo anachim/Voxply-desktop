@@ -1,12 +1,8 @@
 import { useState, useRef, useCallback, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import type { EncryptionWarning } from "@wavvon/ui";
 import type { Conversation, DmMessage, DmMessageFull, Attachment, Hub } from "../types";
 
-export interface EncryptionWarning {
-  message: string;
-  onConfirm?: () => void;
-  onCancel: () => void;
-}
 
 export interface DmsParams {
   publicKeyRef: RefObject<string | null>;
@@ -220,13 +216,13 @@ export function useDms({
             await doSend(undefined, groupEnv);
           } catch {
             setEncryptionWarning({
-              message: "Encryption failed. The message was not sent.",
+              messageKey: "dm.encryption_warning.failed",
               onCancel: () => setEncryptionWarning(null),
             });
           }
         } else {
           setEncryptionWarning({
-            message: "Encryption failed. The message was not sent.",
+            messageKey: "dm.encryption_warning.failed",
             onCancel: () => setEncryptionWarning(null),
           });
         }
@@ -248,7 +244,7 @@ export function useDms({
 
       if (!dhPubkey) {
         setEncryptionWarning({
-          message: "This recipient hasn't published an encryption key. This message will not be encrypted.",
+          messageKey: "dm.encryption_warning.no_key",
           onConfirm: async () => {
             setEncryptionWarning(null);
             await doSend();
@@ -272,7 +268,7 @@ export function useDms({
       await doSend(envelope);
     } catch {
       setEncryptionWarning({
-        message: "Encryption failed. The message was not sent.",
+        messageKey: "dm.encryption_warning.failed",
         onCancel: () => setEncryptionWarning(null),
       });
     }

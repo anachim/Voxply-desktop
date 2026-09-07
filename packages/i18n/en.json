@@ -2036,5 +2036,9 @@
   "hub.sidebar.aria": "Hubs",
   "hub.sidebar.list_aria": "Hub list",
   "hub.placeholder_name": "Hub",
-  "friends.loading": "Loading…"
+  "friends.loading": "Loading…",
+  "dm.encryption_warning.title": "Not encrypted",
+  "dm.encryption_warning.no_key": "This recipient hasn't published an encryption key yet, so this message would reach their hub readable. Send it anyway?",
+  "dm.encryption_warning.failed": "Encryption failed. The message was not sent.",
+  "dm.encryption_warning.key_unreachable": "Could not check this recipient’s encryption key, so the message was not sent. Try again in a moment."
 }
