@@ -1298,3 +1298,71 @@ pub(crate) async fn review_report(
     }
     Ok(())
 }
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct ModerationSettings {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub webhook_url: Option<String>,
+    pub webhook_secret_set: bool,
+    pub circuit_open: bool,
+    pub circuit_open_until: Option<i64>,
+}
+
+#[tauri::command]
+pub(crate) async fn get_moderation_settings(
+    state: State<'_, AppState>,
+) -> Result<ModerationSettings, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .get(format!("{base}/admin/settings/moderation"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
+}
+
+/// Tri-state PATCH, and the reason this builds its body by hand: Tauri gives
+/// the same `None` for an argument the caller omitted and one it passed as
+/// null, while this endpoint reads an **absent** field as "leave it alone" and
+/// an empty string as "clear it". Serializing the Options directly would send
+/// `webhook_url: null` for an untouched field, and saving a secret alone would
+/// wipe the URL. (clients CLAUDE.md, the omitted-vs-null trap — it has bitten
+/// role colour/icon and banner sources before.)
+#[tauri::command]
+pub(crate) async fn set_moderation_settings(
+    webhook_url: Option<String>,
+    webhook_secret: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+
+    let mut body = serde_json::Map::new();
+    if let Some(url) = webhook_url {
+        body.insert("webhook_url".into(), serde_json::Value::String(url));
+    }
+    if let Some(secret) = webhook_secret {
+        body.insert("webhook_secret".into(), serde_json::Value::String(secret));
+    }
+
+    let resp = state
+        .http_client
+        .patch(format!("{base}/admin/settings/moderation"))
+        .bearer_auth(&token)
+        .json(&serde_json::Value::Object(body))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}

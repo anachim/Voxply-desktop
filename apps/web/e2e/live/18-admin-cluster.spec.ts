@@ -179,4 +179,10 @@ test("the moderation tab shows the content report queue", async ({ page }) => {
   await expect(page.getByText("No pending reports", { exact: false })).toBeVisible({
     timeout: 10000,
   });
+
+  // The automod webhook sits in the same tab and was hoisted with it. Its
+  // circuit-breaker row is what says the section reached the hub rather than
+  // rendering its own defaults.
+  await expect(page.getByRole("heading", { name: "Auto-moderation Webhook" })).toBeVisible();
+  await expect(page.getByText("Circuit closed", { exact: false })).toBeVisible({ timeout: 10000 });
 });

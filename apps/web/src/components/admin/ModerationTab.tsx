@@ -1,12 +1,17 @@
-import { ContentReportsSection } from "@wavvon/ui";
-import { listReports, reviewReport } from "../../platform/commands/moderation";
+import { ContentReportsSection, AutomodWebhookSection } from "@wavvon/ui";
+import {
+  listReports,
+  reviewReport,
+  getModerationSettings,
+  patchModerationSettings,
+} from "../../platform/commands/moderation";
 import { useTranslation } from "react-i18next";
-import { AutomodWebhookSection } from "./AutomodWebhookSection";
 import { FederatedBanlistSection } from "./FederatedBanlistSection";
 
 // Stable identity: the section loads on mount and must not reload because a
 // parent re-rendered.
 const contentReportActions = { listReports, reviewReport };
+const automodActions = { getModerationSettings, patchModerationSettings };
 
 export function ModerationTab() {
   const { t } = useTranslation();
@@ -14,7 +19,7 @@ export function ModerationTab() {
     <section>
       <h1>{t("channel.settings.tab_moderation")}</h1>
       <ContentReportsSection actions={contentReportActions} />
-      <AutomodWebhookSection />
+      <AutomodWebhookSection actions={automodActions} />
       <FederatedBanlistSection />
     </section>
   );

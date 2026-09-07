@@ -36,6 +36,8 @@ import type {
   PendingAllianceInvite,
   SharedChannel,
   ContentReportsActions,
+  AutomodWebhookActions,
+  ModerationSettings,
   Report,
 } from "@wavvon/ui";
 
@@ -225,4 +227,16 @@ export function makeSurveyActions(getHubUrl: () => string): SurveyAdminSectionAc
 export const contentReportActions: ContentReportsActions = {
   listReports: (status) => invoke<Report[]>("list_reports", { status }),
   reviewReport: (reportId, action) => invoke("review_report", { reportId, action, note: null }),
+};
+
+// Automod webhook. `undefined` leaves a field alone and `""` clears it — the
+// Rust command builds its body from the fields that are Some, because Tauri
+// cannot tell an omitted argument from an explicit null.
+export const automodActions: AutomodWebhookActions = {
+  getModerationSettings: () => invoke<ModerationSettings>("get_moderation_settings"),
+  patchModerationSettings: (webhookUrl, webhookSecret) =>
+    invoke("set_moderation_settings", {
+      webhookUrl: webhookUrl ?? null,
+      webhookSecret: webhookSecret ?? null,
+    }),
 };

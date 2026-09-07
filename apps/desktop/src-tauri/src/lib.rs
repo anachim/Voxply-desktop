@@ -214,6 +214,8 @@ pub fn run() {
             local_store::save_profile,
             // Admin
             admin::list_reports,
+            admin::get_moderation_settings,
+            admin::set_moderation_settings,
             admin::review_report,
             admin::list_users,
             admin::get_me,

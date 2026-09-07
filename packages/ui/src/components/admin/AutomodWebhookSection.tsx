@@ -1,13 +1,21 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ModerationSettings } from "@shared/types";
-import { getModerationSettings, patchModerationSettings } from "../../platform/commands/moderation";
+import type { ModerationSettings } from "../../types";
+
+export interface AutomodWebhookActions {
+  getModerationSettings: () => Promise<ModerationSettings>;
+  /** Omit a field to leave it alone; pass "" to clear it. Those are different
+   *  states on the wire, and on desktop they are exactly the omitted-vs-null
+   *  trap the clients CLAUDE.md warns about — the command there must build the
+   *  body from the fields that are `Some`. */
+  patchModerationSettings: (webhookUrl?: string, webhookSecret?: string) => Promise<void>;
+}
 
 function formatTimestamp(ts: number): string {
   return new Date(ts * 1000).toLocaleString();
 }
 
-export function AutomodWebhookSection() {
+export function AutomodWebhookSection({ actions }: { actions: AutomodWebhookActions }) {
   const { t } = useTranslation();
   const [settings, setSettings] = useState<ModerationSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,11 +29,11 @@ export function AutomodWebhookSection() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getModerationSettings();
+      const data = await actions.getModerationSettings();
       setSettings(data);
       setUrlInput(data.webhook_url ?? "");
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
@@ -37,7 +45,7 @@ export function AutomodWebhookSection() {
     setSaving(true);
     setError(null);
     try {
-      await patchModerationSettings(
+      await actions.patchModerationSettings(
         urlInput || undefined,
         secretInput || undefined,
       );
@@ -46,7 +54,7 @@ export function AutomodWebhookSection() {
       setTimeout(() => setSaved(false), 2000);
       await load();
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setSaving(false);
     }
@@ -56,12 +64,12 @@ export function AutomodWebhookSection() {
     setSaving(true);
     setError(null);
     try {
-      await patchModerationSettings("");
+      await actions.patchModerationSettings("");
       setUrlInput("");
       setSecretInput("");
       await load();
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setSaving(false);
     }

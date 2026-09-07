@@ -966,3 +966,12 @@ export interface Report {
 }
 
 export type ReportAction = "dismiss" | "delete_message" | "ban_user";
+
+/** The hub's automod webhook configuration, plus the state of the circuit
+ *  breaker that trips when the operator's service stops answering. */
+export interface ModerationSettings {
+  webhook_url?: string;
+  webhook_secret_set: boolean;
+  circuit_open: boolean;
+  circuit_open_until: number | null;
+}
