@@ -79,6 +79,8 @@ jobs:
           WAVVON_VOICE_UDP_PORT: ${{ env.HUB_VOICE_UDP_PORT }}
           WAVVON_PUBLIC_URL: http://localhost:${{ env.HUB_HTTP_PORT }}
           WAVVON_WEB_CLIENT_DIR: ""
+          WAVVON_AUTH_RATE_BURST: "200"
+          WAVVON_AUTH_RATE_PER_SEC: "50"
         run: |
           ./target/debug/wavvon-hub > "$RUNNER_TEMP/hub.log" 2>&1 &
           for i in $(seq 1 60); do
