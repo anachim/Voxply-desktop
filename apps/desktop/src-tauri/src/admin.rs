@@ -1366,3 +1366,203 @@ pub(crate) async fn set_moderation_settings(
     }
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// Federated ban lists (federated-bans.md)
+//
+// Opt-in per hub: which peers' lists this hub subscribes to, whether it
+// publishes its own, and the local overrides that win over both. Desktop had
+// no surface for any of it.
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct BanlistSource {
+    pub url: String,
+    pub policy: String,
+    pub added_at: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issuer_pubkey: Option<String>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct BanlistSettings {
+    pub publish_banlist: bool,
+    pub sources: Vec<BanlistSource>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct FederatedBanEntry {
+    pub source_hub_pubkey: String,
+    pub target_master_pubkey: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    pub added_at: i64,
+    pub synced_at: i64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct BanlistOverride {
+    pub target_pubkey: String,
+    pub override_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    pub created_at: i64,
+}
+
+/// Every banlist call is the same shape: admin auth on the active session, a
+/// JSON body or none, and the hub's own message on failure.
+async fn banlist_request<T: serde::de::DeserializeOwned>(
+    state: &AppState,
+    method: reqwest::Method,
+    path: &str,
+    body: Option<serde_json::Value>,
+) -> Result<T, String> {
+    let (hub_url, token) = active_session(state)?;
+    let base = hub_url.trim_end_matches('/');
+    let mut req = state
+        .http_client
+        .request(method, format!("{base}{path}"))
+        .bearer_auth(&token);
+    if let Some(b) = body {
+        req = req.json(&b);
+    }
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    // A 204 has no body, and the routes that answer one are typed `()` here.
+    let text = resp.text().await.unwrap_or_default();
+    serde_json::from_str(if text.trim().is_empty() { "null" } else { &text })
+        .map_err(|e| format!("Invalid response: {e}"))
+}
+
+#[tauri::command]
+pub(crate) async fn get_banlist_settings(
+    state: State<'_, AppState>,
+) -> Result<BanlistSettings, String> {
+    banlist_request(&state, reqwest::Method::GET, "/admin/settings/banlist", None).await
+}
+
+#[tauri::command]
+pub(crate) async fn get_banlist_entries(
+    source: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Vec<FederatedBanEntry>, String> {
+    let path = match source.as_deref().filter(|s| !s.is_empty()) {
+        Some(s) => format!("/admin/banlist/entries?source={}", percent_encode(s)),
+        None => "/admin/banlist/entries".to_string(),
+    };
+    banlist_request(&state, reqwest::Method::GET, &path, None).await
+}
+
+#[tauri::command]
+pub(crate) async fn get_banlist_overrides(
+    state: State<'_, AppState>,
+) -> Result<Vec<BanlistOverride>, String> {
+    banlist_request(&state, reqwest::Method::GET, "/admin/banlist/overrides", None).await
+}
+
+#[tauri::command]
+pub(crate) async fn add_banlist_source(
+    url: String,
+    policy: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    banlist_request::<()>(
+        &state,
+        reqwest::Method::POST,
+        "/admin/banlist/sources",
+        Some(serde_json::json!({ "url": url, "policy": policy })),
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn remove_banlist_source(
+    url: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    banlist_request::<()>(
+        &state,
+        reqwest::Method::DELETE,
+        "/admin/banlist/sources",
+        Some(serde_json::json!({ "url": url })),
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn update_banlist_source_policy(
+    url: String,
+    policy: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    banlist_request::<()>(
+        &state,
+        reqwest::Method::PATCH,
+        "/admin/banlist/sources",
+        Some(serde_json::json!({ "url": url, "policy": policy })),
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn add_banlist_override(
+    target_pubkey: String,
+    override_type: String,
+    reason: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    banlist_request::<()>(
+        &state,
+        reqwest::Method::POST,
+        "/admin/banlist/overrides",
+        Some(serde_json::json!({
+            "target_pubkey": target_pubkey,
+            "override_type": override_type,
+            "reason": reason,
+        })),
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn remove_banlist_override(
+    target_pubkey: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let path = format!("/admin/banlist/overrides/{}", percent_encode(&target_pubkey));
+    banlist_request::<()>(&state, reqwest::Method::DELETE, &path, None).await
+}
+
+#[tauri::command]
+pub(crate) async fn set_banlist_publish(
+    publish: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    banlist_request::<()>(
+        &state,
+        reqwest::Method::PATCH,
+        "/admin/settings/banlist",
+        Some(serde_json::json!({ "publish_banlist": publish })),
+    )
+    .await
+}
+
+/// Percent-encode everything outside the unreserved set. A hub URL used as a
+/// query value carries `:` and `/`, and a pubkey is hex — but both arrive from
+/// a text field, so neither is worth trusting to be what it should.
+fn percent_encode(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for b in s.as_bytes() {
+        if b.is_ascii_alphanumeric() || b"-_.~".contains(b) {
+            out.push(*b as char);
+        } else {
+            out.push_str(&format!("%{b:02X}"));
+        }
+    }
+    out
+}

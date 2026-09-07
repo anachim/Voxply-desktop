@@ -185,4 +185,9 @@ test("the moderation tab shows the content report queue", async ({ page }) => {
   // rendering its own defaults.
   await expect(page.getByRole("heading", { name: "Auto-moderation Webhook" })).toBeVisible();
   await expect(page.getByText("Circuit closed", { exact: false })).toBeVisible({ timeout: 10000 });
+
+  // Federated ban lists, the third hoisted section. Its synced-entry count
+  // comes from the hub, so rendering it at all means the fetch landed.
+  await expect(page.getByRole("heading", { name: "Federated Ban Lists" })).toBeVisible();
+  await expect(page.getByText("Synced entries", { exact: false })).toBeVisible({ timeout: 10000 });
 });

@@ -1,20 +1,25 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { BanlistSource, FederatedBanEntry, BanlistOverride } from "@shared/types";
-import {
-  getBanlistSettings,
-  getBanlistEntries,
-  getBanlistOverrides,
-  addBanlistSource,
-  removeBanlistSource,
-  updateBanlistSourcePolicy,
-  addBanlistOverride,
-  removeBanlistOverride,
-  setBanlistPublish,
-} from "../../platform/commands/moderation";
+import type { BanlistSource, FederatedBanEntry, BanlistOverride } from "../../types";
+
+export interface FederatedBanlistActions {
+  getBanlistSettings: () => Promise<{ publish_banlist: boolean; sources: BanlistSource[] }>;
+  getBanlistEntries: (source?: string) => Promise<FederatedBanEntry[]>;
+  getBanlistOverrides: () => Promise<BanlistOverride[]>;
+  addBanlistSource: (url: string, policy: "hard-reject" | "soft-flag") => Promise<void>;
+  removeBanlistSource: (url: string) => Promise<void>;
+  updateBanlistSourcePolicy: (url: string, policy: "hard-reject" | "soft-flag") => Promise<void>;
+  addBanlistOverride: (
+    targetPubkey: string,
+    overrideType: "whitelist" | "blacklist",
+    reason?: string,
+  ) => Promise<void>;
+  removeBanlistOverride: (targetPubkey: string) => Promise<void>;
+  setBanlistPublish: (publish: boolean) => Promise<void>;
+}
 import { formatRelative } from "@wavvon/core";
 
-export function FederatedBanlistSection() {
+export function FederatedBanlistSection({ actions }: { actions: FederatedBanlistActions }) {
   const { t } = useTranslation();
   const [sources, setSources] = useState<BanlistSource[]>([]);
   const [entries, setEntries] = useState<FederatedBanEntry[]>([]);
@@ -34,16 +39,16 @@ export function FederatedBanlistSection() {
     setError(null);
     try {
       const [settingsData, entriesData, overridesData] = await Promise.all([
-        getBanlistSettings(),
-        getBanlistEntries(),
-        getBanlistOverrides(),
+        actions.getBanlistSettings(),
+        actions.getBanlistEntries(),
+        actions.getBanlistOverrides(),
       ]);
       setSources(settingsData.sources);
       setPublishBanlist(settingsData.publish_banlist);
       setEntries(entriesData);
       setOverrides(overridesData);
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -52,45 +57,45 @@ export function FederatedBanlistSection() {
   async function handleAddSource() {
     if (!newSourceUrl.trim()) return;
     try {
-      await addBanlistSource(newSourceUrl.trim(), newSourcePolicy);
+      await actions.addBanlistSource(newSourceUrl.trim(), newSourcePolicy);
       setNewSourceUrl("");
       await load();
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
 
   async function handleRemoveSource(url: string) {
     try {
-      await removeBanlistSource(url);
+      await actions.removeBanlistSource(url);
       await load();
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
 
   async function handlePolicyChange(url: string, policy: "hard-reject" | "soft-flag") {
     try {
-      await updateBanlistSourcePolicy(url, policy);
+      await actions.updateBanlistSourcePolicy(url, policy);
       await load();
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
 
   async function handlePublishToggle(checked: boolean) {
     try {
-      await setBanlistPublish(checked);
+      await actions.setBanlistPublish(checked);
       setPublishBanlist(checked);
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
 
   async function handleAddOverride() {
     if (!newOverridePubkey.trim()) return;
     try {
-      await addBanlistOverride(
+      await actions.addBanlistOverride(
         newOverridePubkey.trim(),
         newOverrideType,
         newOverrideReason.trim() || undefined,
@@ -99,16 +104,16 @@ export function FederatedBanlistSection() {
       setNewOverrideReason("");
       await load();
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
 
   async function handleRemoveOverride(pubkey: string) {
     try {
-      await removeBanlistOverride(pubkey);
+      await actions.removeBanlistOverride(pubkey);
       await load();
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
 

@@ -37,6 +37,10 @@ import type {
   SharedChannel,
   ContentReportsActions,
   AutomodWebhookActions,
+  FederatedBanlistActions,
+  BanlistSource,
+  FederatedBanEntry,
+  BanlistOverride,
   ModerationSettings,
   Report,
 } from "@wavvon/ui";
@@ -239,4 +243,23 @@ export const automodActions: AutomodWebhookActions = {
       webhookUrl: webhookUrl ?? null,
       webhookSecret: webhookSecret ?? null,
     }),
+};
+
+// Federated ban lists. Every call acts on the active session, like the rest of
+// the moderation tab.
+export const banlistActions: FederatedBanlistActions = {
+  getBanlistSettings: () =>
+    invoke<{ publish_banlist: boolean; sources: BanlistSource[] }>("get_banlist_settings"),
+  getBanlistEntries: (source) =>
+    invoke<FederatedBanEntry[]>("get_banlist_entries", { source: source ?? null }),
+  getBanlistOverrides: () => invoke<BanlistOverride[]>("get_banlist_overrides"),
+  addBanlistSource: (url, policy) => invoke("add_banlist_source", { url, policy }),
+  removeBanlistSource: (url) => invoke("remove_banlist_source", { url }),
+  updateBanlistSourcePolicy: (url, policy) =>
+    invoke("update_banlist_source_policy", { url, policy }),
+  addBanlistOverride: (targetPubkey, overrideType, reason) =>
+    invoke("add_banlist_override", { targetPubkey, overrideType, reason: reason ?? null }),
+  removeBanlistOverride: (targetPubkey) =>
+    invoke("remove_banlist_override", { targetPubkey }),
+  setBanlistPublish: (publish) => invoke("set_banlist_publish", { publish }),
 };

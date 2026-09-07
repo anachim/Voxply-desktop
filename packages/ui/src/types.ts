@@ -975,3 +975,27 @@ export interface ModerationSettings {
   circuit_open: boolean;
   circuit_open_until: number | null;
 }
+
+/** Federated ban lists (`federated-bans.md`): a hub this one subscribes to,
+ *  what it publishes, and the local overrides that win over both. */
+export interface BanlistSource {
+  url: string;
+  policy: "hard-reject" | "soft-flag";
+  added_at: number;
+  issuer_pubkey?: string;
+}
+
+export interface FederatedBanEntry {
+  source_hub_pubkey: string;
+  target_master_pubkey: string;
+  reason?: string;
+  added_at: number;
+  synced_at: number;
+}
+
+export interface BanlistOverride {
+  target_pubkey: string;
+  override_type: "whitelist" | "blacklist";
+  reason?: string;
+  created_at: number;
+}
