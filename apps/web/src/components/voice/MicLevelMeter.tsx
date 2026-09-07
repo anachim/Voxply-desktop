@@ -1,15 +1,35 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { effectiveVad, micTestVerdict } from "../../platform/speakingDetector";
 
 // A "test your mic" level meter: opens its own microphone stream, runs it
 // through an AnalyserNode, and animates a bar from the RMS level. Fully
 // client-side (no hub involvement); ported from the desktop MicLevelMeter.
 // The stream is opened only while testing and always released on stop.
-export function MicLevelMeter() {
+interface Props {
+  /** The audio profile in force, so the meter can show the level at which
+   *  this user actually starts transmitting. Omitted: the standard gate. */
+  audioProfile?: {
+    profile?: "standard" | "music" | "custom";
+    customVad?: boolean;
+    customVadThreshold?: number;
+  };
+}
+
+/** Long enough that someone who pressed Start and said something has said it,
+ *  short enough to still be about the sentence they just spoke. */
+const VERDICT_AFTER_MS = 4000;
+
+export function MicLevelMeter({ audioProfile }: Props = {}) {
   const { t } = useTranslation();
   const [testing, setTesting] = useState(false);
   const [level, setLevel] = useState(0); // 0..1
   const [error, setError] = useState<string | null>(null);
+  /** Loudest raw RMS seen this run — raw, because the gate compares raw RMS
+   *  while the bar below shows a scaled version of it. */
+  const [peak, setPeak] = useState(0);
+  const [longEnough, setLongEnough] = useState(false);
+  const verdictTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const streamRef = useRef<MediaStream | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
@@ -22,7 +42,11 @@ export function MicLevelMeter() {
     streamRef.current = null;
     void ctxRef.current?.close().catch(() => {});
     ctxRef.current = null;
+    if (verdictTimer.current !== null) clearTimeout(verdictTimer.current);
+    verdictTimer.current = null;
     setLevel(0);
+    setPeak(0);
+    setLongEnough(false);
     setTesting(false);
   }
 
@@ -39,6 +63,9 @@ export function MicLevelMeter() {
       source.connect(analyser);
       const buf = new Uint8Array(analyser.fftSize);
       setTesting(true);
+      setPeak(0);
+      setLongEnough(false);
+      verdictTimer.current = setTimeout(() => setLongEnough(true), VERDICT_AFTER_MS);
 
       const tick = () => {
         analyser.getByteTimeDomainData(buf);
@@ -50,6 +77,7 @@ export function MicLevelMeter() {
         }
         const rms = Math.sqrt(sumSq / buf.length);
         setLevel(Math.min(1, rms * 2.5));
+        setPeak((prev) => (rms > prev ? rms : prev));
         rafRef.current = requestAnimationFrame(tick);
       };
       rafRef.current = requestAnimationFrame(tick);
@@ -63,6 +91,17 @@ export function MicLevelMeter() {
   useEffect(() => () => stop(), []);
 
   const pct = Math.round(level * 100);
+
+  // The bar shows rms * 2.5, so the gate has to be drawn on the same scale to
+  // sit where the bar will actually reach it.
+  const vad = effectiveVad(audioProfile);
+  const gatePct = Math.min(100, vad.threshold * 2.5 * 100);
+
+  // Only once there has been time to speak, and only about what was heard.
+  // Three different problems, and sending someone to the wrong one wastes the
+  // trip: nothing arriving at all is a device, arriving-but-under-the-gate is
+  // the sensitivity, and crossing it is nothing.
+  const verdict = testing && longEnough ? micTestVerdict(peak, vad) : null;
 
   return (
     <div className="settings-section" style={{ marginTop: 16 }}>
@@ -84,6 +123,7 @@ export function MicLevelMeter() {
             background: "var(--bg-elevated)",
             border: "1px solid var(--border)",
             overflow: "hidden",
+            position: "relative",
           }}
         >
           <div
@@ -94,10 +134,46 @@ export function MicLevelMeter() {
               transition: "width 60ms linear",
             }}
           />
+          {vad.enabled && (
+            // Where transmission starts. Without it the bar answers "is my mic
+            // working", which was never the question someone nobody can hear
+            // is asking.
+            <div
+              aria-hidden="true"
+              title={t("settings.voice.mic_test.gate_title")}
+              style={{
+                position: "absolute",
+                left: `${gatePct}%`,
+                top: 0,
+                bottom: 0,
+                width: 2,
+                background: "var(--text-muted)",
+              }}
+            />
+          )}
         </div>
       </div>
       {error && <p className="error-text" style={{ fontSize: "var(--text-sm)" }}>{error}</p>}
-      {testing && <p className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("settings.voice.mic_test.speak")}</p>}
+      {testing && verdict === null && (
+        <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
+          {t("settings.voice.mic_test.speak")}
+        </p>
+      )}
+      {verdict === "silent" && (
+        <p className="error-text" style={{ fontSize: "var(--text-sm)" }}>
+          {t("settings.voice.mic_test.no_signal")}
+        </p>
+      )}
+      {verdict === "below_gate" && (
+        <p className="error-text" style={{ fontSize: "var(--text-sm)" }}>
+          {t("settings.voice.mic_test.below_gate")}
+        </p>
+      )}
+      {verdict === "ok" && (
+        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
+          {t("settings.voice.mic_test.above_gate")}
+        </p>
+      )}
     </div>
   );
 }

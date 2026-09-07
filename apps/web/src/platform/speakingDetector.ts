@@ -96,3 +96,29 @@ export function nextSpeakingState(
   if (now - prev.lastLoudAt >= opts.holdMs) return { speaking: false, lastLoudAt: prev.lastLoudAt };
   return prev;
 }
+
+/** Below this an RMS is the room, not a voice — a muted mic, the wrong
+ *  device, a browser that granted a dead stream. */
+export const MIC_TEST_SILENCE_FLOOR = 0.002;
+
+export type MicTestVerdict = "silent" | "below_gate" | "ok";
+
+/**
+ * What to tell someone who just tested their microphone.
+ *
+ * Three different problems sit behind "nobody can hear me" and they send the
+ * user to three different places, so guessing wastes the trip: no signal at
+ * all is a device or a permission, a signal that never reaches the gate is
+ * the sensitivity (and the reason the level meter alone was not enough — it
+ * moves cheerfully while transmission never opens), and crossing the gate
+ * means the problem is somewhere else entirely.
+ *
+ * `null` when there is nothing to say yet: still measuring, or a profile with
+ * no gate at all (music transmits continuously).
+ */
+export function micTestVerdict(peakRms: number, vad: EffectiveVad): MicTestVerdict | null {
+  if (!vad.enabled) return null;
+  if (peakRms < MIC_TEST_SILENCE_FLOOR) return "silent";
+  if (peakRms < vad.threshold) return "below_gate";
+  return "ok";
+}

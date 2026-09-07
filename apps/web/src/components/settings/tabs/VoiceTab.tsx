@@ -61,7 +61,7 @@ export function VoiceTab() {
 
       <h2 className="settings-subheading">{t("settings.voice.section.audio")}</h2>
       <AudioDevicesSection />
-      <MicLevelMeter />
+      <MicLevelMeter audioProfile={audioProfile} />
       <PushToTalkSection />
 
       {/* Codec/quality tuning is advanced and rarely touched — last. */}

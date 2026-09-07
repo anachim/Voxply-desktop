@@ -2040,5 +2040,9 @@
   "dm.encryption_warning.title": "Non cifrato",
   "dm.encryption_warning.no_key": "Questo destinatario non ha ancora pubblicato una chiave di cifratura, quindi il messaggio arriverebbe al suo hub in chiaro. Inviarlo comunque?",
   "dm.encryption_warning.failed": "Cifratura non riuscita. Il messaggio non è stato inviato.",
-  "dm.encryption_warning.key_unreachable": "Non è stato possibile verificare la chiave di cifratura del destinatario, quindi il messaggio non è stato inviato. Riprova tra poco."
+  "dm.encryption_warning.key_unreachable": "Non è stato possibile verificare la chiave di cifratura del destinatario, quindi il messaggio non è stato inviato. Riprova tra poco.",
+  "settings.voice.mic_test.gate_title": "Wavvon inizia a trasmettere a questo livello",
+  "settings.voice.mic_test.no_signal": "Non arriva alcun suono a questo microfono. Controlla che sia il dispositivo giusto e che non sia disattivato.",
+  "settings.voice.mic_test.below_gate": "Il microfono funziona, ma non ha mai raggiunto il livello a cui Wavvon inizia a trasmettere: in un canale vocale nessuno ti sentirebbe. Alza il volume d'ingresso, oppure abbassa la sensibilità nel profilo audio personalizzato.",
+  "settings.voice.mic_test.above_gate": "Volume sufficiente: superi il livello di trasmissione."
 }

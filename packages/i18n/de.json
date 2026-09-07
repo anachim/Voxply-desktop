@@ -2040,5 +2040,9 @@
   "dm.encryption_warning.title": "Nicht verschlüsselt",
   "dm.encryption_warning.no_key": "Diese Person hat noch keinen Verschlüsselungsschlüssel veröffentlicht, die Nachricht würde ihren Hub also lesbar erreichen. Trotzdem senden?",
   "dm.encryption_warning.failed": "Verschlüsselung fehlgeschlagen. Die Nachricht wurde nicht gesendet.",
-  "dm.encryption_warning.key_unreachable": "Der Verschlüsselungsschlüssel dieser Person konnte nicht geprüft werden, die Nachricht wurde daher nicht gesendet. Versuche es gleich noch einmal."
+  "dm.encryption_warning.key_unreachable": "Der Verschlüsselungsschlüssel dieser Person konnte nicht geprüft werden, die Nachricht wurde daher nicht gesendet. Versuche es gleich noch einmal.",
+  "settings.voice.mic_test.gate_title": "Ab diesem Pegel sendet Wavvon",
+  "settings.voice.mic_test.no_signal": "An diesem Mikrofon kommt kein Ton an. Prüfe, ob es das richtige Gerät ist und nicht stummgeschaltet.",
+  "settings.voice.mic_test.below_gate": "Dein Mikrofon funktioniert, hat aber nie den Pegel erreicht, ab dem Wavvon sendet — in einem Sprachkanal würde dich niemand hören. Erhöhe die Eingangslautstärke oder senke die Empfindlichkeit im benutzerdefinierten Audioprofil.",
+  "settings.voice.mic_test.above_gate": "Laut genug — du überschreitest den Sendepegel."
 }

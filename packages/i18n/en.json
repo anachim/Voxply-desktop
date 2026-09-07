@@ -2040,5 +2040,9 @@
   "dm.encryption_warning.title": "Not encrypted",
   "dm.encryption_warning.no_key": "This recipient hasn't published an encryption key yet, so this message would reach their hub readable. Send it anyway?",
   "dm.encryption_warning.failed": "Encryption failed. The message was not sent.",
-  "dm.encryption_warning.key_unreachable": "Could not check this recipient’s encryption key, so the message was not sent. Try again in a moment."
+  "dm.encryption_warning.key_unreachable": "Could not check this recipient’s encryption key, so the message was not sent. Try again in a moment.",
+  "settings.voice.mic_test.gate_title": "Wavvon starts transmitting at this level",
+  "settings.voice.mic_test.no_signal": "No sound is reaching this microphone. Check that it is the right device and not muted.",
+  "settings.voice.mic_test.below_gate": "Your microphone is working, but never reached the level where Wavvon starts transmitting — nobody in a voice channel would hear you. Raise your input volume, or lower the sensitivity under the custom audio profile.",
+  "settings.voice.mic_test.above_gate": "Loud enough — you cross the transmit level."
 }
