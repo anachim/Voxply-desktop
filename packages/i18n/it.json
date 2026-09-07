@@ -2045,5 +2045,7 @@
   "settings.voice.mic_test.no_signal": "Non arriva alcun suono a questo microfono. Controlla che sia il dispositivo giusto e che non sia disattivato.",
   "settings.voice.mic_test.below_gate": "Il microfono funziona, ma non ha mai raggiunto il livello a cui Wavvon inizia a trasmettere: in un canale vocale nessuno ti sentirebbe. Alza il volume d'ingresso, oppure abbassa la sensibilità nel profilo audio personalizzato.",
   "settings.voice.mic_test.above_gate": "Volume sufficiente: superi il livello di trasmissione.",
-  "dm.group_send_unsupported": "Questo client non può ancora scrivere nelle conversazioni di gruppo: non gestisce le sender key, quindi solo un membro riuscirebbe a leggere il messaggio. Per questa conversazione usa l'app desktop."
+  "dm.group_send_unsupported": "Questo client non può ancora scrivere nelle conversazioni di gruppo: non gestisce le sender key, quindi solo un membro riuscirebbe a leggere il messaggio. Per questa conversazione usa l'app desktop.",
+  "settings.voice.vad.sensitivity_hint": "Quanto devi essere forte perché Wavvon inizi a trasmettere. La linea sul metro qui sopra è questo livello.",
+  "settings.voice.vad.custom_override": "Il profilo audio personalizzato lo sta sovrascrivendo con {value}."
 }

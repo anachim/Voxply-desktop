@@ -81,6 +81,10 @@ export interface AudioProfileConfig {
   customApp?: 'voip' | 'audio' | 'lowdelay';
   customNoiseSuppress?: boolean;
   customVad?: boolean;
+  /** Sensitivity under every gating profile; customVadThreshold overrides it
+   *  inside custom only. Without this the engine could not see a threshold
+   *  set outside the custom panel — see effectiveVad. */
+  vadThreshold?: number;
   customVadThreshold?: number;
   customChannels?: 1 | 2;
   customFrameMs?: 20 | 40 | 60;

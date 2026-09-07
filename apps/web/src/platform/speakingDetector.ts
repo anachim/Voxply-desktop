@@ -50,28 +50,42 @@ export interface EffectiveVad {
  * Resolve the audio profile into the VAD settings actually in force.
  *
  * Mirrors `effective_config` in the desktop pipeline
- * (`crates/voice/src/pipeline.rs`) so the same profile behaves the same on
- * both clients: standard detects speech at the default threshold, music turns
- * VAD off because a continuous instrument is exactly what a silence gate cuts
- * up, and only the custom profile reads the toggle and slider the voice
- * settings expose. The web engine used to apply `customVadThreshold` under
- * every profile and ignore `customVad` entirely.
+ * (`crates/voice/src/pipeline.rs`), which has **two** thresholds and not one:
+ * `vadThreshold` is the sensitivity that applies whatever profile you are on,
+ * and `customVadThreshold` overrides it inside the custom profile only. Music
+ * turns VAD off entirely, because a continuous instrument is exactly what a
+ * silence gate cuts up.
+ *
+ * This used to claim it mirrored that function while the standard profile
+ * ignored the user's threshold and always used the constant — so the one
+ * setting that decides whether anyone hears you did different things on the
+ * two clients, and web's sensitivity slider was reachable only by switching
+ * to the custom profile (docs `next-up.md`, the VAD known issue). Fixed
+ * 2026-09-07 by taking desktop's model, which is the one a visible control
+ * implies.
  */
 export function effectiveVad(cfg?: {
   profile?: 'standard' | 'music' | 'custom';
   customVad?: boolean;
+  /** Applies under every profile that gates at all. */
+  vadThreshold?: number;
+  /** Custom-profile override of the above. */
   customVadThreshold?: number;
 }): EffectiveVad {
+  const base = cfg?.vadThreshold ?? DEFAULT_SPEAKING.threshold;
   if (cfg?.profile === 'music') {
-    return { enabled: false, threshold: DEFAULT_SPEAKING.threshold };
+    return { enabled: false, threshold: base };
   }
   if (cfg?.profile === 'custom') {
     return {
       enabled: cfg.customVad ?? true,
-      threshold: cfg.customVadThreshold ?? DEFAULT_SPEAKING.threshold,
+      // `.or()` in the Rust: the custom value when set, the general one
+      // otherwise — not the constant, which would quietly undo a sensitivity
+      // the user set outside the panel.
+      threshold: cfg.customVadThreshold ?? base,
     };
   }
-  return { enabled: true, threshold: DEFAULT_SPEAKING.threshold };
+  return { enabled: true, threshold: base };
 }
 
 export const INITIAL_SPEAKING_STATE: SpeakingState = { speaking: false, lastLoudAt: 0 };

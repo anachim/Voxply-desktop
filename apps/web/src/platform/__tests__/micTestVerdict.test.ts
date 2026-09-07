@@ -48,3 +48,42 @@ describe("micTestVerdict", () => {
     ).toBeNull();
   });
 });
+
+// The setting that decides audibility, and the two clients disagreed on it:
+// desktop's `effective_config` reads `vad_threshold` under the standard
+// profile, web's `effectiveVad` ignored it and always used the constant — while
+// its own doc comment claimed to mirror desktop. So a sensitivity someone set
+// did nothing until they also switched profile, and the slider was reachable
+// only from inside the custom panel.
+describe("effectiveVad and the two thresholds", () => {
+  it("honours the general sensitivity under standard, as desktop always has", () => {
+    expect(effectiveVad({ profile: "standard", vadThreshold: 0.08 })).toEqual({
+      enabled: true,
+      threshold: 0.08,
+    });
+  });
+
+  it("falls back to the constant when nothing was set", () => {
+    expect(effectiveVad({ profile: "standard" }).threshold).toBe(DEFAULT_SPEAKING.threshold);
+    expect(effectiveVad().threshold).toBe(DEFAULT_SPEAKING.threshold);
+  });
+
+  it("lets the custom profile override it, and inherits it when it does not", () => {
+    expect(
+      effectiveVad({ profile: "custom", vadThreshold: 0.08, customVadThreshold: 0.15 }).threshold,
+    ).toBe(0.15);
+    // The Rust is `custom_vad_threshold.or(vad_threshold)` — inheriting, not
+    // resetting to the constant, which would undo a setting made outside.
+    expect(effectiveVad({ profile: "custom", vadThreshold: 0.08 }).threshold).toBe(0.08);
+  });
+
+  it("keeps the custom VAD toggle custom-only", () => {
+    expect(effectiveVad({ profile: "custom", customVad: false }).enabled).toBe(false);
+    // Standard gates regardless of a toggle that belongs to another profile.
+    expect(effectiveVad({ profile: "standard", customVad: false }).enabled).toBe(true);
+  });
+
+  it("still turns the gate off for music", () => {
+    expect(effectiveVad({ profile: "music", vadThreshold: 0.08 }).enabled).toBe(false);
+  });
+});

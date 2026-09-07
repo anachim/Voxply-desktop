@@ -24,6 +24,14 @@ test("mic test meter renders and toggles", async ({ page }) => {
     meter.locator("[title='Wavvon starts transmitting at this level']"),
   ).toBeVisible();
 
+  // And the setting that moves that line, on the standard profile — it used to
+  // live inside the custom audio panel, so the one control over whether anyone
+  // hears you was reachable only by switching profile. Desktop has always had
+  // it in the open.
+  const sensitivity = page.locator("#vad-sensitivity");
+  await expect(sensitivity).toBeVisible();
+  await expect(sensitivity).toHaveValue("0.02");
+
   // "Test microphone" until the voice tab was localized (clients 5e90ac8):
   // the label is now settings.voice.mic_test.start.
   await page.getByRole("button", { name: "Start mic test" }).click();

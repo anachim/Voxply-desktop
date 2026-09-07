@@ -2045,5 +2045,7 @@
   "settings.voice.mic_test.no_signal": "No sound is reaching this microphone. Check that it is the right device and not muted.",
   "settings.voice.mic_test.below_gate": "Your microphone is working, but never reached the level where Wavvon starts transmitting — nobody in a voice channel would hear you. Raise your input volume, or lower the sensitivity under the custom audio profile.",
   "settings.voice.mic_test.above_gate": "Loud enough — you cross the transmit level.",
-  "dm.group_send_unsupported": "This client cannot send to group conversations yet — it has no sender keys, so only one member would be able to read the message. Use the desktop app for this conversation."
+  "dm.group_send_unsupported": "This client cannot send to group conversations yet — it has no sender keys, so only one member would be able to read the message. Use the desktop app for this conversation.",
+  "settings.voice.vad.sensitivity_hint": "How loud you have to be before Wavvon starts transmitting. The line on the meter above is this level.",
+  "settings.voice.vad.custom_override": "The custom audio profile is overriding this with {value}."
 }
