@@ -116,3 +116,26 @@ describe("sendDm and the recipient's encryption key", () => {
     expect(postedBodies()).toHaveLength(0);
   });
 });
+
+describe("sendDm and group conversations", () => {
+  it("refuses a group rather than encrypting to one arbitrary member", async () => {
+    // The read path already says "upgrade client to read" for a group; the
+    // send path had no equivalent, and would have picked whichever member
+    // came first — one reader, everyone else locked out, reported as sent.
+    dmFetch.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (init?.method === "POST") return new Response(JSON.stringify({ id: "m1" }), { status: 201 });
+      return new Response(
+        JSON.stringify({
+          id: "c1",
+          members: [SENDER_PUB, RECIPIENT_PUB, "cc".repeat(32)],
+          conv_type: "group",
+        }),
+        { status: 200 },
+      );
+    });
+    vi.stubGlobal("fetch", vi.fn(dhKeyResponse(200, "aa".repeat(32))));
+
+    await expect(sendDm("c1", "hello group")).rejects.toThrow();
+    expect(postedBodies()).toHaveLength(0);
+  });
+});

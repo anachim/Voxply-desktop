@@ -268,7 +268,19 @@ export async function sendDm(
   if (!identity) throw new Error("No identity");
 
   const { signingSeedHex, senderPubkey, signerCert, dhPriv } = resolveDmSendAttribution(identity);
-  const members = await getConversationMembers(conversation_id);
+  const conversation = await getConversation_(conversation_id);
+
+  // Group DMs use sender keys, which this client does not implement — it says
+  // so when *reading* one ("upgrade client to read"). Sending had no such
+  // check, and the 1:1 path below would have picked whichever member happened
+  // to come first and encrypted to them alone: readable by one person in the
+  // group, undecryptable for everyone else, and reported to the sender as
+  // sent. Reachable, because a desktop client can put a web user in a group.
+  if (conversation.conv_type === "group") {
+    throw new Error(i18n.t("dm.group_send_unsupported"));
+  }
+
+  const members = conversation.members;
   // Conversation membership is keyed to the canonical pubkey, not this
   // device's own signing key — a paired device's subkey never appears in
   // it (see decisions.md "Paired-device DMs attribute to canonical via
@@ -342,10 +354,9 @@ export async function getConversation(conversation_id: string): Promise<Conversa
   return (await res.json()) as Conversation;
 }
 
-async function getConversationMembers(conversation_id: string): Promise<string[]> {
+async function getConversation_(conversation_id: string): Promise<Conversation> {
   const res = await dmFetch(`/conversations/${conversation_id}`);
-  const conv = (await res.json()) as Conversation;
-  return conv.members;
+  return (await res.json()) as Conversation;
 }
 
 const dhKeyCache = new Map<string, { hex: string; ts: number }>();

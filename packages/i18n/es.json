@@ -2044,5 +2044,6 @@
   "settings.voice.mic_test.gate_title": "Wavvon empieza a transmitir a este nivel",
   "settings.voice.mic_test.no_signal": "No llega ningún sonido a este micrófono. Comprueba que sea el dispositivo correcto y que no esté silenciado.",
   "settings.voice.mic_test.below_gate": "Tu micrófono funciona, pero nunca alcanzó el nivel al que Wavvon empieza a transmitir: nadie te oiría en un canal de voz. Sube el volumen de entrada o baja la sensibilidad en el perfil de audio personalizado.",
-  "settings.voice.mic_test.above_gate": "Volumen suficiente: superas el nivel de transmisión."
+  "settings.voice.mic_test.above_gate": "Volumen suficiente: superas el nivel de transmisión.",
+  "dm.group_send_unsupported": "Este cliente aún no puede enviar a conversaciones de grupo: no maneja claves de emisor, así que solo un miembro podría leer el mensaje. Usa la aplicación de escritorio para esta conversación."
 }

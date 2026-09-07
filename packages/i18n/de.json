@@ -2044,5 +2044,6 @@
   "settings.voice.mic_test.gate_title": "Ab diesem Pegel sendet Wavvon",
   "settings.voice.mic_test.no_signal": "An diesem Mikrofon kommt kein Ton an. Prüfe, ob es das richtige Gerät ist und nicht stummgeschaltet.",
   "settings.voice.mic_test.below_gate": "Dein Mikrofon funktioniert, hat aber nie den Pegel erreicht, ab dem Wavvon sendet — in einem Sprachkanal würde dich niemand hören. Erhöhe die Eingangslautstärke oder senke die Empfindlichkeit im benutzerdefinierten Audioprofil.",
-  "settings.voice.mic_test.above_gate": "Laut genug — du überschreitest den Sendepegel."
+  "settings.voice.mic_test.above_gate": "Laut genug — du überschreitest den Sendepegel.",
+  "dm.group_send_unsupported": "Dieser Client kann noch nicht in Gruppenunterhaltungen schreiben — ihm fehlen die Sender-Keys, sodass nur ein Mitglied die Nachricht lesen könnte. Nutze dafür die Desktop-App."
 }
