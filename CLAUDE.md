@@ -253,6 +253,28 @@ event enum matched unknown types as `Other => {}`, so four hub features were
 simply absent with no symptom, for months. When you add a catch-all arm, make the
 unknown case say something.
 
+**Its sharpest form: a transient failure read as a definitive answer.** Four
+bugs on 2026-09-07 were one shape — a `catch` that turned "could not ask" into
+"the answer is no", where the caller could not tell the difference:
+
+- `restorePersistedHubs` dropped a hub whose startup re-auth met a 429, so the
+  user's communities vanished and the welcome screen came back;
+- the socket asked for a fresh token past its retry threshold and `return`ed
+  without arming its own retry, so a re-auth that failed ended the session in
+  place while the UI still said "Reconnecting…";
+- `fetchDhKey` answered `null` for both "no key published" and "the request
+  failed", and `sendDm` read `null` as "cannot encrypt" — so a rate-limited
+  moment sent a DM **in the clear**;
+- and the demo bot exited outright on a 429 while waiting to be invited.
+
+The tell is a fallback that is indistinguishable from a legitimate state:
+empty list, no key, not a member, disconnected. When you write one, ask what
+else produces that state — and if a network failure is on the list, either
+retry it or refuse. **Refusing is the safe direction on anything touching
+confidentiality**: `sendDm` now takes no answer over a guess. The lenient
+reading stays only where a failure and an absence genuinely mean the same
+thing (voice key distribution skips that peer either way), and says so.
+
 **Two-axis state model.** Community-axis state (channels, messages, roles) lives
 on community hubs. Personal-axis state (prefs, DM history, block/mute/ignore,
 home hub list, custom themes, drafts) lives on the user's home hub(s). Don't mix
